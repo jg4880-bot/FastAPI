@@ -1,70 +1,52 @@
-"""Primary application entrypoint.
-"""
-import locale
-import logging
-import os
-import sys
-from typing import List, Optional
+from fastapi import FastAPI, Query
+from pydantic import BaseModel
+from app.bigram_model import BigramModel, SpacyEmbedder
 
-from pip._internal.cli.autocompletion import autocomplete
-from pip._internal.cli.main_parser import parse_command
-from pip._internal.commands import create_command
-from pip._internal.exceptions import PipError
-from pip._internal.utils import deprecation
+app = FastAPI(title="Bigram + spaCy API", version="1.0")
 
-logger = logging.getLogger(__name__)
+# Sample corpus for the bigram model
+corpus = [
+    ("The Count of Monte Cristo is a novel written by Alexandre Dumas. "
+     "It tells the story of Edmond Dantès, who is falsely imprisoned and later seeks revenge."),
+    "this is another example sentence",
+    "we are generating text based on bigram probabilities",
+    "bigram models are simple but effective",
+]
+bigram_model = BigramModel(corpus)
+embedder = SpacyEmbedder("en_core_web_sm")
 
+class TextGenerationRequest(BaseModel):
+    start_word: str
+    length: int
 
-# Do not import and use main() directly! Using it directly is actively
-# discouraged by pip's maintainers. The name, location and behavior of
-# this function is subject to change, so calling it directly is not
-# portable across different pip versions.
+@app.get("/")
+def read_root():
+    return {"Hello": "World"}
 
-# In addition, running pip in-process is unsupported and unsafe. This is
-# elaborated in detail at
-# https://pip.pypa.io/en/stable/user_guide/#using-pip-from-your-program.
-# That document also provides suggestions that should work for nearly
-# all users that are considering importing and using main() directly.
+@app.post("/generate")
+def generate_text(request: TextGenerationRequest):
+    generated_text = bigram_model.generate_text(request.start_word, request.length)
+    return {"generated_text": generated_text}
 
-# However, we know that certain users will still want to invoke pip
-# in-process. If you understand and accept the implications of using pip
-# in an unsupported manner, the best approach is to use runpy to avoid
-# depending on the exact location of this entry point.
+@app.get("/predict/{word}")
+def predict_next(word: str):
+    return {"word": word, "next_word": bigram_model.predict_next(word)}
 
-# The following example shows how to use runpy to invoke pip in that
-# case:
-#
-#     sys.argv = ["pip", your, args, here]
-#     runpy.run_module("pip", run_name="__main__")
-#
-# Note that this will exit the process after running, unlike a direct
-# call to main. As it is not safe to do any processing after calling
-# main, this should not be an issue in practice.
+@app.get("/sample/{word}")
+def sample_next(word: str):
+    return {"word": word, "sampled_next": bigram_model.sample_next(word)}
 
+# —— spaCy 向量与相似度 ——
+@app.get("/embed/token")
+def embed_token(token: str = Query(..., description="single word")):
+    vec = embedder.embed_token(token)
+    return {"token": token, "dim": len(vec), "first10": vec[:10]}
 
-def main(args: Optional[List[str]] = None) -> int:
-    if args is None:
-        args = sys.argv[1:]
+@app.get("/embed/text")
+def embed_text(text: str = Query(..., description="any sentence")):
+    vec = embedder.embed_text(text)
+    return {"text": text, "dim": len(vec), "first10": vec[:10]}
 
-    # Configure our deprecation warnings to be sent through loggers
-    deprecation.install_warning_logger()
-
-    autocomplete()
-
-    try:
-        cmd_name, cmd_args = parse_command(args)
-    except PipError as exc:
-        sys.stderr.write(f"ERROR: {exc}")
-        sys.stderr.write(os.linesep)
-        sys.exit(1)
-
-    # Needed for locale.getpreferredencoding(False) to work
-    # in pip._internal.utils.encoding.auto_decode
-    try:
-        locale.setlocale(locale.LC_ALL, "")
-    except locale.Error as e:
-        # setlocale can apparently crash if locale are uninitialized
-        logger.debug("Ignoring error %s when setting locale", e)
-    command = create_command(cmd_name, isolated=("--isolated" in cmd_args))
-
-    return command.main(cmd_args)
+@app.get("/similarity")
+def similarity(w1: str, w2: str):
+    return {"w1": w1, "w2": w2, "similarity": embedder.similarity(w1, w2)}
