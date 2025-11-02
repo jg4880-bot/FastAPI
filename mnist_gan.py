@@ -3,7 +3,6 @@ import torch, torch.nn as nn, torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms, utils as vutils
 
-# ----- device (CUDA / MPS / CPU) -----
 def get_device():
     if torch.cuda.is_available():
         return "cuda"
@@ -11,9 +10,8 @@ def get_device():
         return "mps"
     return "cpu"
 
-# ----- models -----
 class G(nn.Module):
-    # z -> FC -> (128,7,7) -> ConvT(128->64,k4,s2,p1)+BN+ReLU -> ConvT(64->1,k4,s2,p1)+Tanh
+
     def __init__(self, latent_dim=100, out_ch=1):
         super().__init__()
         self.fc = nn.Linear(latent_dim, 128*7*7)
@@ -28,7 +26,7 @@ class G(nn.Module):
         return self.net(x)
 
 class D(nn.Module):
-    # (1,28,28) -> Conv(1->64,k4,s2,p1)+LReLU -> Conv(64->128,k4,s2,p1)+BN+LReLU -> Flatten+Linear->1
+
     def __init__(self, in_ch=1):
         super().__init__()
         self.features = nn.Sequential(
@@ -41,7 +39,6 @@ class D(nn.Module):
         h = self.features(x).view(x.size(0), -1)
         return self.fc(h).squeeze(1)  # raw logit
 
-# ----- utils -----
 def set_seed(seed=42):
     random.seed(seed); torch.manual_seed(seed); torch.cuda.manual_seed_all(seed)
 
@@ -53,7 +50,6 @@ def save_samples(Gnet, device, latent_dim, path, n=25, nrow=5):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     vutils.save_image(imgs.clamp(0,1), path, nrow=nrow, padding=2)
 
-# ----- training -----
 def train(args):
     set_seed(args.seed)
     device = get_device()
@@ -82,7 +78,7 @@ def train(args):
             real_y = torch.ones(b, device=device)
             fake_y = torch.zeros(b, device=device)
 
-            # ----- Train D -----
+          
             optD.zero_grad()
             d_real = criterion(Dnet(real), real_y)
             z = torch.randn(b, args.latent_dim, device=device)
@@ -91,7 +87,7 @@ def train(args):
             d_loss = d_real + d_fake
             d_loss.backward(); optD.step()
 
-            # ----- Train G -----
+          
             optG.zero_grad()
             z = torch.randn(b, args.latent_dim, device=device)
             gen = Gnet(z)
@@ -103,7 +99,7 @@ def train(args):
                       f"Step [{i}/{steps_per_epoch}] "
                       f"D: {d_loss.item():.4f} | G: {g_loss.item():.4f}")
 
-        # save grid per epoch
+        
         save_samples(Gnet, device, args.latent_dim,
                      os.path.join(args.out_dir, f"samples_epoch_{epoch}.png"),
                      n=25, nrow=5)
