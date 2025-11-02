@@ -1,4 +1,3 @@
-# main.py
 import os
 import argparse
 import math
@@ -10,14 +9,10 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms, utils as vutils
 
-# Use a non-interactive backend so this works on headless environments
 import matplotlib
 matplotlib.use("Agg")
 
 
-# ---------------------------
-# Models (match your slide)
-# ---------------------------
 class ConvGenerator(nn.Module):
     """
     z -> FC -> (128,7,7) -> ConvT(128->64,k4,s2,p1)+BN+ReLU -> (64,14,14)
@@ -60,9 +55,6 @@ class ConvDiscriminator(nn.Module):
         return self.out(h).squeeze(1)  # raw logit
 
 
-# ---------------------------
-# Training utilities
-# ---------------------------
 def set_seed(seed: int):
     random.seed(seed)
     torch.manual_seed(seed)
@@ -146,18 +138,11 @@ def train_gan(G, D, loader, device, epochs, latent_dim, lr, betas, out_dir,
     torch.save(G.state_dict(), os.path.join(out_dir, "G_final.pt"))
     torch.save(D.state_dict(), os.path.join(out_dir, "D_final.pt"))
 
-
-# ---------------------------
-# Safer transform (no lambda)
-# ---------------------------
 def scale_to_minus1_1(x: torch.Tensor) -> torch.Tensor:
     """Map [0,1] tensor to [-1,1] for Tanh generator compatibility."""
     return x * 2.0 - 1.0
 
 
-# ---------------------------
-# Main
-# ---------------------------
 def main():
     parser = argparse.ArgumentParser(description="Train a DCGAN on MNIST (28x28)")
     parser.add_argument("--epochs", type=int, default=5)
@@ -177,7 +162,6 @@ def main():
     os.makedirs(args.out_dir, exist_ok=True)
     print(f"Device: {device}")
 
-    # Data: MNIST scaled to [-1, 1] to match Tanh
     transform = transforms.Compose([
         transforms.ToTensor(),                 # [0,1]
         transforms.Lambda(scale_to_minus1_1)   # [-1,1] (no lambda literal)
@@ -191,11 +175,11 @@ def main():
         pin_memory=True
     )
 
-    # Models
+
     G = ConvGenerator(latent_dim=args.latent_dim, out_ch=1).to(device)
     D = ConvDiscriminator(in_ch=1).to(device)
 
-    # Train
+
     train_gan(
         G, D, loader, device,
         epochs=args.epochs,
@@ -206,7 +190,7 @@ def main():
         sample_every_steps=100
     )
 
-    # Final sample grid
+
     final_grid = os.path.join(args.out_dir, "samples_final.png")
     save_samples(G, device, args.latent_dim, final_grid, num=25, nrow=5)
     print(f"Training complete. Samples saved to: {args.out_dir}")
