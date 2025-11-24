@@ -1,8 +1,8 @@
-# cnn/config.py
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-DATA_DIR = ROOT / "data"
+ROOT = Path(__file__).resolve().parent
+
+DATA_DIR = ROOT / "datasets"
 MODELS_DIR = ROOT / "models"
 ASSETS_DIR = ROOT / "assets"
 WEIGHTS_PATH = MODELS_DIR / "weights.pt"
