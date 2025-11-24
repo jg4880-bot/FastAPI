@@ -1,3 +1,4 @@
+
 FROM python:3.12-slim-bookworm
 
 RUN apt-get update && apt-get install -y 
@@ -8,7 +9,7 @@ RUN sh /uv-installer.sh && rm /uv-installer.sh
 
 ENV PATH="/root/.local/bin/:$PATH"
 
-WORKDIR /code
+WORKDIR  /code
 
 COPY pyproject.toml uv.lock /code/
 
