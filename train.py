@@ -1,10 +1,11 @@
 import torch
 import torch.nn as nn
 from torch.optim import Adam
-from cnn.config import EPOCHS, LR, WEIGHTS_PATH
-from cnn.data import cifar10_loaders
-from cnn.model import SimpleCNN
-from cnn.engine import train_one_epoch, evaluate
+
+from config import EPOCHS, LR, WEIGHTS_PATH
+from data import cifar10_loaders
+from model import SimpleCNN
+from engine import train_one_epoch, evaluate
 
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -14,14 +15,22 @@ def main():
     criterion = nn.CrossEntropyLoss()
     optim = Adam(model.parameters(), lr=LR)
 
-    best_val, best_state = 0.0, None
-    for ep in range(1, EPOCHS + 1):
-        tr_loss, tr_acc = train_one_epoch(model, train_loader, criterion, optim, device)
+    best_val_acc = 0.0
+    best_state = None
+
+    for epoch in range(1, EPOCHS + 1):
+        train_loss, train_acc = train_one_epoch(
+            model, train_loader, criterion, optim, device
+        )
         val_loss, val_acc = evaluate(model, val_loader, criterion, device)
-        print(f"[Epoch {ep:02d}] train {tr_loss:.4f}/{tr_acc:.4f} | val {val_loss:.4f}/{val_acc:.4f}")
-        if val_acc > best_val:
-            best_val = val_acc
-            best_state = {k: v.cpu() for k, v in model.state_dict().items()}
+        print(
+            f"Epoch {epoch:02d} | "
+            f"Train {train_loss:.4f}/{train_acc:.4f} | "
+            f"Val {val_loss:.4f}/{val_acc:.4f}"
+        )
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
+            best_state = model.state_dict()
 
     if best_state:
         model.load_state_dict(best_state)
